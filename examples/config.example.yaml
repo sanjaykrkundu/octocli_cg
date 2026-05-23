@@ -1,0 +1,19 @@
+default_profile: local
+
+profiles:
+  local:
+    base_url: http://localhost:11434/v1
+    api_key: ""
+    model: llama3.1
+  openai:
+    base_url: https://api.openai.com/v1
+    api_key: ${OPENAI_API_KEY}
+    model: gpt-4o-mini
+  custom:
+    base_url: https://example.com/v1
+    api_key: ${CUSTOM_API_KEY}
+    model: custom-model
+
+routing:
+  fast_profile: local
+  heavy_profile: openai

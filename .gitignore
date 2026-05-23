@@ -1,0 +1,6 @@
+.octocli_cg/
+.agents/
+*.exe
+*.test
+coverage.out
+.env

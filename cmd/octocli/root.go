@@ -31,6 +31,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&profileName, "profile", "", "LLM profile name to use")
 	rootCmd.AddCommand(configCmd())
 	rootCmd.AddCommand(chatCmd())
+	rootCmd.AddCommand(agentCmd())
 }
 
 func loadConfig() (*config.Config, error) {

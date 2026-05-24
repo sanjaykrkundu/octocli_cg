@@ -18,6 +18,8 @@ type Loop struct {
 	MaxIterations int
 	SystemPrompt  string
 	Rules         string
+	Depth         int
+	MaxDepth      int
 }
 
 type ModelResponse struct {
@@ -114,9 +116,13 @@ Rules:
 - Use tools when you need workspace or command information.
 - After receiving TOOL_RESULT, continue reasoning from that result.
 - Keep thoughts brief.
+- Current delegation depth: %d.
 
 Available tools:
-%s`, string(definitions))
+%s`, l.Depth, string(definitions))
+	if l.MaxDepth > 0 {
+		prompt += fmt.Sprintf("\nMaximum delegation depth: %d.", l.MaxDepth)
+	}
 	if strings.TrimSpace(l.Rules) == "" {
 		return prompt
 	}

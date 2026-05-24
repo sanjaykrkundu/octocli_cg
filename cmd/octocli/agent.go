@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sanja/octocli_cg/internal/agent"
+	"github.com/sanja/octocli_cg/internal/config"
 	appcontext "github.com/sanja/octocli_cg/internal/context"
 	"github.com/sanja/octocli_cg/internal/llm"
 	"github.com/sanja/octocli_cg/internal/tools"
@@ -17,6 +18,7 @@ import (
 func agentCmd() *cobra.Command {
 	var force bool
 	var maxSteps int
+	const maxDelegationDepth = 2
 
 	cmd := &cobra.Command{
 		Use:   "agent [prompt]",
@@ -41,18 +43,7 @@ func agentCmd() *cobra.Command {
 				return err
 			}
 
-			runner := agent.Loop{
-				Client: llm.NewOpenAICompatibleClient(profile),
-				Tools: tools.Runtime{
-					WorkspaceRoot: workspaceRoot,
-					ForceShell:    force,
-					In:            os.Stdin,
-					Out:           os.Stdout,
-					Err:           os.Stderr,
-				},
-				MaxIterations: maxSteps,
-				Rules:         bundle.Rules,
-			}
+			runner := newAgentLoop(profile, workspaceRoot, bundle, force, maxSteps, 0, maxDelegationDepth)
 
 			if len(args) > 0 {
 				prompt, err := resolvePrompt(bundle, strings.Join(args, " "))
@@ -74,6 +65,31 @@ func agentCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&force, "force", false, "allow execute_shell without interactive confirmation")
 	cmd.Flags().IntVar(&maxSteps, "max-steps", agent.DefaultMaxIterations, "maximum ReAct iterations before aborting")
 	return cmd
+}
+
+func newAgentLoop(profile config.Profile, workspaceRoot string, bundle appcontext.Bundle, force bool, maxSteps int, depth int, maxDepth int) agent.Loop {
+	loop := agent.Loop{
+		Client:        llm.NewOpenAICompatibleClient(profile),
+		MaxIterations: maxSteps,
+		Rules:         bundle.Rules,
+		Depth:         depth,
+		MaxDepth:      maxDepth,
+	}
+	loop.Tools = tools.Runtime{
+		WorkspaceRoot: workspaceRoot,
+		ForceShell:    force,
+		In:            os.Stdin,
+		Out:           os.Stdout,
+		Err:           os.Stderr,
+		Delegate: func(ctx context.Context, prompt string) (string, error) {
+			if depth >= maxDepth {
+				return "", fmt.Errorf("maximum delegation depth reached (%d)", maxDepth)
+			}
+			subLoop := newAgentLoop(profile, workspaceRoot, bundle, force, maxSteps, depth+1, maxDepth)
+			return subLoop.Run(ctx, prompt)
+		},
+	}
+	return loop
 }
 
 func runAgentREPL(cmd *cobra.Command, runner agent.Loop, bundle appcontext.Bundle) error {

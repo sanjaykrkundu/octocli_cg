@@ -81,3 +81,16 @@ go run . task check <task-id> 0 true
 go run . task run "Refactor auth module" --item "Inspect current code" --item "Write tests" --item "Implement changes"
 go run . task monitor
 ```
+
+## Step 6 scope
+
+- Added `delegate_task` to the agent toolset.
+- The main agent can spawn isolated sub-agents for focused subtasks.
+- Sub-agents inherit the same workspace capabilities and confirmation rules.
+- Delegation depth is bounded to avoid runaway recursive spawning.
+
+### Step 6 examples
+
+```powershell
+go run . agent "Use delegate_task to inspect README.md and summarize the implementation roadmap"
+```

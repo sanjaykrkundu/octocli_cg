@@ -34,3 +34,20 @@ go run . agent "Read README.md and summarize it"
 go run . agent
 go run . agent --force "Run git status"
 ```
+
+## Step 3 scope
+
+- Rules are loaded from both `~/.octocli_cg/rules/` and `./.agents/rules/`.
+- Workflow templates are loaded from both `~/.octocli_cg/workflows/` and `./.agents/workflows/`.
+- Workspace workflows override global workflows when names collide.
+- Loaded rules are appended to the agent system prompt.
+- Slash workflows like `/review` are expanded before the agent loop runs.
+
+### Step 3 examples
+
+```powershell
+go run . workflow list
+go run . workflow show review
+go run . agent /review
+go run . agent "/review src/auth.go"
+```

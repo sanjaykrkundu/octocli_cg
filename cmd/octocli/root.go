@@ -32,6 +32,7 @@ func init() {
 	rootCmd.AddCommand(configCmd())
 	rootCmd.AddCommand(chatCmd())
 	rootCmd.AddCommand(agentCmd())
+	rootCmd.AddCommand(workflowCmd())
 }
 
 func loadConfig() (*config.Config, error) {

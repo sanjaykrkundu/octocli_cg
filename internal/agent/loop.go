@@ -17,6 +17,7 @@ type Loop struct {
 	Tools         tools.Runtime
 	MaxIterations int
 	SystemPrompt  string
+	Rules         string
 }
 
 type ModelResponse struct {
@@ -88,7 +89,7 @@ func (l Loop) systemPrompt() string {
 	}
 
 	definitions, _ := json.MarshalIndent(l.Tools.Definitions(), "", "  ")
-	return fmt.Sprintf(`You are octocli_cg, a CLI coding agent using a ReAct-style loop.
+	prompt := fmt.Sprintf(`You are octocli_cg, a CLI coding agent using a ReAct-style loop.
 
 You must respond with valid JSON only.
 Return exactly one of these shapes:
@@ -116,4 +117,8 @@ Rules:
 
 Available tools:
 %s`, string(definitions))
+	if strings.TrimSpace(l.Rules) == "" {
+		return prompt
+	}
+	return prompt + "\n\nAdditional rules context:\n" + l.Rules
 }

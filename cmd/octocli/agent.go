@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sanja/octocli_cg/internal/agent"
+	appcontext "github.com/sanja/octocli_cg/internal/context"
 	"github.com/sanja/octocli_cg/internal/llm"
 	"github.com/sanja/octocli_cg/internal/tools"
 	"github.com/spf13/cobra"
@@ -35,6 +36,10 @@ func agentCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			bundle, err := appcontext.Load(workspaceRoot)
+			if err != nil {
+				return err
+			}
 
 			runner := agent.Loop{
 				Client: llm.NewOpenAICompatibleClient(profile),
@@ -46,10 +51,15 @@ func agentCmd() *cobra.Command {
 					Err:           os.Stderr,
 				},
 				MaxIterations: maxSteps,
+				Rules:         bundle.Rules,
 			}
 
 			if len(args) > 0 {
-				answer, err := runner.Run(context.Background(), strings.Join(args, " "))
+				prompt, err := resolvePrompt(bundle, strings.Join(args, " "))
+				if err != nil {
+					return err
+				}
+				answer, err := runner.Run(context.Background(), prompt)
 				if err != nil {
 					return err
 				}
@@ -57,7 +67,7 @@ func agentCmd() *cobra.Command {
 				return err
 			}
 
-			return runAgentREPL(cmd, runner)
+			return runAgentREPL(cmd, runner, bundle)
 		},
 	}
 
@@ -66,7 +76,7 @@ func agentCmd() *cobra.Command {
 	return cmd
 }
 
-func runAgentREPL(cmd *cobra.Command, runner agent.Loop) error {
+func runAgentREPL(cmd *cobra.Command, runner agent.Loop, bundle appcontext.Bundle) error {
 	reader := bufio.NewScanner(os.Stdin)
 	fmt.Fprintln(cmd.OutOrStdout(), "octocli_cg agent REPL. Type 'exit' or 'quit' to stop.")
 	for {
@@ -84,12 +94,35 @@ func runAgentREPL(cmd *cobra.Command, runner agent.Loop) error {
 		if prompt == "exit" || prompt == "quit" {
 			return nil
 		}
+		resolvedPrompt, err := resolvePrompt(bundle, prompt)
+		if err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
+			continue
+		}
 
-		answer, err := runner.Run(context.Background(), prompt)
+		answer, err := runner.Run(context.Background(), resolvedPrompt)
 		if err != nil {
 			fmt.Fprintf(cmd.ErrOrStderr(), "error: %v\n", err)
 			continue
 		}
 		fmt.Fprintln(cmd.OutOrStdout(), answer)
 	}
+}
+
+func resolvePrompt(bundle appcontext.Bundle, input string) (string, error) {
+	input = strings.TrimSpace(input)
+	if !strings.HasPrefix(input, "/") {
+		return input, nil
+	}
+
+	parts := strings.Fields(input)
+	name := strings.TrimPrefix(parts[0], "/")
+	wf, ok := bundle.Workflows[name]
+	if !ok {
+		return "", fmt.Errorf("workflow /%s not found", name)
+	}
+	if len(parts) == 1 {
+		return wf.Content, nil
+	}
+	return wf.Content + "\n\nUser arguments:\n" + strings.Join(parts[1:], " "), nil
 }

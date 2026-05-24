@@ -33,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(chatCmd())
 	rootCmd.AddCommand(agentCmd())
 	rootCmd.AddCommand(workflowCmd())
+	rootCmd.AddCommand(taskCmd())
 }
 
 func loadConfig() (*config.Config, error) {

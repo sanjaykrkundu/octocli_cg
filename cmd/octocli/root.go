@@ -16,7 +16,8 @@ var rootCmd = &cobra.Command{
 	Short: "A fast CLI agent with configurable OpenAI-compatible LLM connectivity",
 	Long: `octocli_cg is a CLI agent foundation focused on speed, asynchronous execution,
 and unified local state. Step 1 provides the Cobra command shell, configuration
-loading, and an OpenAI-compatible streaming LLM harness.`,
+loading, and an OpenAI-compatible streaming LLM harness. Later steps add rules,
+artifact tracking, and terminal task monitoring.`,
 }
 
 func Execute() {

@@ -67,3 +67,17 @@ go run . task list
 go run . task show <task-id>
 go run . task check <task-id> 0 true
 ```
+
+## Step 5 scope
+
+- Bubble Tea TUI for monitoring tracked tasks and logs.
+- Async/background task runner that updates `.agents/brain/<GUID>/` state.
+- `task run` starts a background workflow and immediately returns a task ID.
+- `task monitor` opens a live terminal UI for status/log inspection.
+
+### Step 5 examples
+
+```powershell
+go run . task run "Refactor auth module" --item "Inspect current code" --item "Write tests" --item "Implement changes"
+go run . task monitor
+```

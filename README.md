@@ -51,3 +51,19 @@ go run . workflow show review
 go run . agent /review
 go run . agent "/review src/auth.go"
 ```
+
+## Step 4 scope
+
+- Task artifacts are stored in `./.agents/brain/<GUID>/`.
+- Each task contains `task.md`, `implementation_plan.md`, and `.metadata.json`.
+- Metadata tracks goal, timestamps, status, and checklist completion.
+- New `task` command supports create, list, show, and checklist updates.
+
+### Step 4 examples
+
+```powershell
+go run . task create "Refactor auth module" --item "Inspect current code" --item "Write plan" --item "Implement changes"
+go run . task list
+go run . task show <task-id>
+go run . task check <task-id> 0 true
+```

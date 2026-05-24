@@ -6,7 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sanja/octocli_cg/internal/async"
 	"github.com/sanja/octocli_cg/internal/brain"
+	"github.com/sanja/octocli_cg/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,6 +23,9 @@ func taskCmd() *cobra.Command {
 	cmd.AddCommand(taskListCmd())
 	cmd.AddCommand(taskShowCmd())
 	cmd.AddCommand(taskCheckCmd())
+	cmd.AddCommand(taskRunCmd())
+	cmd.AddCommand(taskMonitorCmd())
+	cmd.AddCommand(taskWorkerCmd())
 	return cmd
 }
 
@@ -133,4 +139,67 @@ func taskCheckCmd() *cobra.Command {
 			return err
 		},
 	}
+}
+
+func taskRunCmd() *cobra.Command {
+	var checklist []string
+	var plan string
+
+	cmd := &cobra.Command{
+		Use:   "run [goal]",
+		Short: "Create a task and run it asynchronously with log updates",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			workspaceRoot, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			runner := async.Runner{Store: brain.Store{WorkspaceRoot: workspaceRoot}}
+			task, err := runner.StartTask(strings.Join(args, " "), checklist, plan)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "started background task %s\n", task.Metadata.ID)
+			return err
+		},
+	}
+
+	cmd.Flags().StringArrayVar(&checklist, "item", nil, "checklist item (repeatable)")
+	cmd.Flags().StringVar(&plan, "plan", "", "initial implementation plan markdown")
+	return cmd
+}
+
+func taskMonitorCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "monitor",
+		Short: "Open a Bubble Tea TUI for monitored task status and logs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			workspaceRoot, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			program := tea.NewProgram(tui.NewTaskModel(brain.Store{WorkspaceRoot: workspaceRoot}), tea.WithAltScreen())
+			_, err = program.Run()
+			return err
+		},
+	}
+}
+
+func taskWorkerCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:    "worker [id]",
+		Short:  "Run a background worker for a tracked task",
+		Args:   cobra.ExactArgs(1),
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			workspaceRoot, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			runner := async.Runner{Store: brain.Store{WorkspaceRoot: workspaceRoot}}
+			runner.RunTask(args[0])
+			return nil
+		},
+	}
+	return cmd
 }

@@ -25,6 +25,7 @@ type Metadata struct {
 	ID                 string    `json:"id"`
 	Goal               string    `json:"goal"`
 	Status             string    `json:"status"`
+	LogFile            string    `json:"log_file"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
 	TaskFile           string    `json:"task_file"`
@@ -62,6 +63,7 @@ func (s Store) Create(goal string, checklist []string, implementationPlan string
 		ID:                 id,
 		Goal:               goal,
 		Status:             "in_progress",
+		LogFile:            "run.log",
 		CreatedAt:          now,
 		UpdatedAt:          now,
 		TaskFile:           taskFileName,
@@ -147,6 +149,53 @@ func (s Store) SetChecklistItem(id string, index int, completed bool) (*Task, er
 		return nil, err
 	}
 	return task, nil
+}
+
+func (s Store) UpdateStatus(id string, status string) (*Task, error) {
+	task, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	task.Metadata.Status = status
+	task.Metadata.UpdatedAt = time.Now().UTC()
+	if err := writeMetadata(filepath.Join(task.Dir, metadataFileName), task.Metadata); err != nil {
+		return nil, err
+	}
+	return task, nil
+}
+
+func (s Store) AppendLog(id string, content string) error {
+	task, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+	logPath := filepath.Join(task.Dir, task.Metadata.LogFile)
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(content); err != nil {
+		return fmt.Errorf("append log: %w", err)
+	}
+	task.Metadata.UpdatedAt = time.Now().UTC()
+	return writeMetadata(filepath.Join(task.Dir, metadataFileName), task.Metadata)
+}
+
+func (s Store) LogContents(id string) (string, error) {
+	task, err := s.Get(id)
+	if err != nil {
+		return "", err
+	}
+	logPath := filepath.Join(task.Dir, task.Metadata.LogFile)
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read log file: %w", err)
+	}
+	return string(data), nil
 }
 
 func (s Store) brainRoot() string {

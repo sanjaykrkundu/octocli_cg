@@ -36,6 +36,7 @@ type Runtime struct {
 	In            *os.File
 	Out           *os.File
 	Err           *os.File
+	Delegate      func(ctx context.Context, prompt string) (string, error)
 }
 
 func (r Runtime) Definitions() []Definition {
@@ -76,6 +77,17 @@ func (r Runtime) Definitions() []Definition {
 				"required": []string{"command"},
 			},
 		},
+		{
+			Name:        "delegate_task",
+			Description: "Spawn an isolated sub-agent for a sub-task and return its result.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"prompt": map[string]any{"type": "string"},
+				},
+				"required": []string{"prompt"},
+			},
+		},
 	}
 }
 
@@ -87,6 +99,8 @@ func (r Runtime) Execute(ctx context.Context, call Call) Result {
 		return r.writeFile(call.Arguments)
 	case "execute_shell":
 		return r.executeShell(ctx, call.Arguments)
+	case "delegate_task":
+		return r.delegateTask(ctx, call.Arguments)
 	default:
 		return Result{Tool: call.Name, OK: false, Error: fmt.Sprintf("unknown tool %q", call.Name)}
 	}
@@ -180,6 +194,28 @@ func (r Runtime) executeShell(ctx context.Context, raw json.RawMessage) Result {
 		return Result{Tool: "execute_shell", OK: false, Output: combined.String(), Error: err.Error()}
 	}
 	return Result{Tool: "execute_shell", OK: true, Output: combined.String()}
+}
+
+type delegateTaskArgs struct {
+	Prompt string `json:"prompt"`
+}
+
+func (r Runtime) delegateTask(ctx context.Context, raw json.RawMessage) Result {
+	if r.Delegate == nil {
+		return Result{Tool: "delegate_task", OK: false, Error: "delegate_task is not configured"}
+	}
+	var args delegateTaskArgs
+	if err := json.Unmarshal(raw, &args); err != nil {
+		return Result{Tool: "delegate_task", OK: false, Error: fmt.Sprintf("parse arguments: %v", err)}
+	}
+	if strings.TrimSpace(args.Prompt) == "" {
+		return Result{Tool: "delegate_task", OK: false, Error: "prompt is required"}
+	}
+	output, err := r.Delegate(ctx, args.Prompt)
+	if err != nil {
+		return Result{Tool: "delegate_task", OK: false, Error: err.Error()}
+	}
+	return Result{Tool: "delegate_task", OK: true, Output: output}
 }
 
 func (r Runtime) confirmShell(command string) bool {
